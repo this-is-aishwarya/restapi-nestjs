@@ -5,12 +5,14 @@ import { AuthDto } from "./dto";
 import * as argon from 'argon2';
 import { JwtService } from "@nestjs/jwt";
 import internal from "stream";
+import { ConfigService } from "@nestjs/config";
 
 @Injectable({})
 export class AuthService{
     constructor(
       private prisma: PrismaService, 
-      private jwt: JwtService) {}
+      private jwt: JwtService,
+      private config: ConfigService) {}
     
     async signup(dto: AuthDto){
 
@@ -73,23 +75,25 @@ export class AuthService{
             );
 
         // return user
-        delete user.hash;
-        return user;
+        return this.signToken(user.id, user.email);
 
     }
 
-    async signToken(
-      userId: number,
-      email: string
-    ){
+    async signToken(userId: number,email: string): Promise<{ access_token: string }>{
       const payload = {
         sub: userId,
         email
       }
 
-      return this.jwt.signAsync(payload, {
+      const secret = this.config.get('JWT_SECRET')
+
+      const token = await this.jwt.signAsync(payload, {
         expiresIn: '15m',
-        secret: ''
-      })
+        secret: secret
+      });
+
+      return {
+        access_token: token,
+      };
     }
 }
